@@ -184,6 +184,10 @@ func getEsdtInfo(
 			}
 			esdtData.Type = tokenType
 		}
+		if esdtData.TokenMetaData == nil {
+			return nil, ErrNilESDTData
+		}
+
 		return &esdtStorageInfo{
 			esdtData:            esdtData,
 			esdtTokenKey:        esdtTokenKey,
