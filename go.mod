@@ -25,6 +25,6 @@ require (
 
 replace github.com/gogo/protobuf => github.com/multiversx/protobuf v1.3.2
 
-replace github.com/multiversx/mx-chain-core-go => github.com/xorewa/mx-chain-core-go v0.0.0-20260604191320-30151e35534a
+replace github.com/multiversx/mx-chain-core-go => github.com/xorewa/mx-chain-core-go v0.0.0-20260622185646-a558edf5ceda
 
-replace github.com/multiversx/mx-chain-logger-go => github.com/xorewa/mx-chain-logger-go v0.0.0-20260605054918-542a098b91c6
+replace github.com/multiversx/mx-chain-logger-go => github.com/xorewa/mx-chain-logger-go v0.0.0-20260630161826-04c5818227ed
