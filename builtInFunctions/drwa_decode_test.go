@@ -185,6 +185,25 @@ func TestDecodeDRWABinaryTokenPolicyRejectsShortPayload(t *testing.T) {
 	require.Error(t, decodeDRWABinaryTokenPolicy(make([]byte, 11), view))
 }
 
+func TestDecodeDRWABinaryTokenPolicyAcceptsCanonicalBooleanOnlyPayload(t *testing.T) {
+	t.Parallel()
+
+	view := &drwaTokenPolicyView{}
+	payload := make([]byte, drwaBinaryTokenPolicyMinSize)
+	payload[0] = 1
+	payload[1] = 1
+	payload[2] = 1
+	payload[3] = 1
+
+	require.NoError(t, decodeDRWABinaryTokenPolicy(payload, view))
+	require.True(t, view.DRWAEnabled)
+	require.True(t, view.GlobalPause)
+	require.True(t, view.StrictAuditorMode)
+	require.True(t, view.MetadataProtectionEnabled)
+	require.Nil(t, view.AllowedInvestorClasses)
+	require.Nil(t, view.AllowedJurisdictions)
+}
+
 func TestDecodeDRWABinaryHolderMirrorRejectsShortPayload(t *testing.T) {
 	t.Parallel()
 

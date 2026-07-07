@@ -654,6 +654,9 @@ func decodeDRWABinaryTokenPolicy(data []byte, destination *drwaTokenPolicyView) 
 	if len(data) < drwaBinaryTokenPolicyMinSize {
 		return errors.New("invalid DRWA binary token policy payload")
 	}
+	if len(data) != drwaBinaryTokenPolicyMinSize {
+		return fmt.Errorf("invalid DRWA binary token policy payload length: got %d, expected %d", len(data), drwaBinaryTokenPolicyMinSize)
+	}
 
 	destination.DRWAEnabled = data[0] == 1
 	destination.GlobalPause = data[1] == 1
@@ -668,17 +671,11 @@ func decodeDRWABinaryTokenPolicy(data []byte, destination *drwaTokenPolicyView) 
 		}
 	}
 
-	// Binary format cannot encode AllowedInvestorClasses or
-	// AllowedJurisdictions maps. These remain nil after binary decode.
-	// The enforcement gate checks `len(map) > 0` before using them,
-	// so nil maps mean "no restriction" — all classes/jurisdictions allowed.
-	// This is SAFE because the Rust policy-registry contract serializes
-	// token policies as JSON when investor_classes or jurisdictions are set.
-	// Binary format is only used for policies with boolean-only flags.
-
 	// Binary format cannot encode AllowedInvestorClasses/AllowedJurisdictions.
-	// Nil maps therefore mean "no restriction". Keep emitting metrics so
-	// operators can distinguish binary boolean-only policies from JSON policies.
+	// Nil maps therefore mean "no restriction". Only the exact 12-byte
+	// boolean-only format is accepted here; trailing bytes are rejected above so
+	// future/buggy encoders cannot silently append ignored restriction data.
+	// Restricted policies must be synced as JSON by the Rust policy-registry.
 	if destination.DRWAEnabled {
 		recordDRWAGateMetric("binary_policy_decode_enabled")
 		if destination.AllowedInvestorClasses == nil && destination.AllowedJurisdictions == nil {

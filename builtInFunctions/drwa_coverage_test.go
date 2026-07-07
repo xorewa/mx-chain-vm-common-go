@@ -512,6 +512,18 @@ func TestDecodeDRWABinaryTokenPolicy_ReservedBytesNonZero(t *testing.T) {
 	require.Contains(t, err.Error(), "reserved bytes must be 0")
 }
 
+func TestDecodeDRWABinaryTokenPolicy_RejectsTrailingBytes(t *testing.T) {
+	t.Parallel()
+
+	data := make([]byte, drwaBinaryTokenPolicyMinSize+1)
+	data[0] = 1 // DRWAEnabled
+	data[drwaBinaryTokenPolicyMinSize] = 1
+
+	err := decodeDRWABinaryTokenPolicy(data, &drwaTokenPolicyView{})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid DRWA binary token policy payload length")
+}
+
 // ---------------------------------------------------------------------------
 // G-01: GetTokenPolicy empty token identifier
 // ---------------------------------------------------------------------------
@@ -693,6 +705,12 @@ func FuzzDecodeDRWABinaryTokenPolicy(f *testing.F) {
 		if len(data) < drwaBinaryTokenPolicyMinSize {
 			if err == nil {
 				t.Fatal("expected error for short payload")
+			}
+			return
+		}
+		if len(data) != drwaBinaryTokenPolicyMinSize {
+			if err == nil {
+				t.Fatal("expected error for non-canonical length")
 			}
 			return
 		}
