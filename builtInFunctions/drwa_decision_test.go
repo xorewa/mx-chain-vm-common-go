@@ -375,6 +375,32 @@ func TestEvaluateDRWAMetadataUpdateDeniesAssetRecordWindDown(t *testing.T) {
 	}
 }
 
+func TestEvaluateDRWAMetadataUpdateDeniesStalePolicyMirror(t *testing.T) {
+	t.Parallel()
+
+	reader := &stubDRWAStateReader{
+		policy: &drwaTokenPolicyView{
+			DRWAEnabled:               true,
+			MetadataProtectionEnabled: true,
+			TokenPolicyVersion:        4,
+		},
+		holder: &drwaHolderMirrorView{
+			KYCStatus:              "approved",
+			AMLStatus:              "approved",
+			AuditorAuthorized:      true,
+			PolicyVersionEvaluated: 3,
+		},
+	}
+
+	regulated, err := evaluateDRWAMetadataUpdate(reader, []byte("HOTEL-1234"), []byte("caller"), nil)
+	if !regulated {
+		t.Fatalf("expected regulated token")
+	}
+	if err != errDRWAPolicyNotSynced {
+		t.Fatalf("expected stale policy denial, got %v", err)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // F2 (closes N1): LockUntilRound deny-by-default when round is unknown
 // ---------------------------------------------------------------------------

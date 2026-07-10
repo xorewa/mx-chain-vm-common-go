@@ -74,14 +74,23 @@ func init() {
 	drwaReadGasUnitsAtomic.Store(drwaReadGasUnitsDefault)
 }
 
-// SetDRWAReadGasUnits allows the gas schedule to configure the DRWA compliance
-// read cost. Must be called during node initialization, before any transfers
-// are processed. Zero values are rejected to prevent free compliance checks.
-func SetDRWAReadGasUnits(units uint64) {
+// TrySetDRWAReadGasUnits allows the gas schedule to configure the DRWA
+// compliance read cost. Must be called during node initialization, before any
+// transfers are processed. Zero values are rejected to prevent free compliance
+// checks.
+func TrySetDRWAReadGasUnits(units uint64) bool {
 	if units == 0 {
-		return // Reject zero — would make compliance checks free
+		return false
 	}
 	drwaReadGasUnitsAtomic.Store(units)
+	return true
+}
+
+// SetDRWAReadGasUnits preserves the historical fire-and-forget API. New
+// callers that need misconfiguration visibility should use
+// TrySetDRWAReadGasUnits and check the returned boolean.
+func SetDRWAReadGasUnits(units uint64) {
+	_ = TrySetDRWAReadGasUnits(units)
 }
 
 // Exported constants for cross-module validation.
@@ -1295,6 +1304,15 @@ func evaluateDRWAMetadataUpdate(reader drwaStateReader, tokenID []byte, callerAd
 	holder, err := reader.GetHolderMirror(tokenID, callerAddr, callerAccount)
 	if err != nil {
 		return true, err
+	}
+	if freshness := validateDRWAHolderPolicyFreshness(policy, holder); !freshness.Allowed {
+		recordDRWAGateMetric(drwaGateMetricDeniedPolicyNotSynced)
+		logDRWA.Warn(drwaLogMetadataDenied,
+			"token", string(tokenID),
+			"address", hex.EncodeToString(callerAddr),
+			"reason", freshness.DenialCode.Error(),
+		)
+		return true, freshness.DenialCode
 	}
 
 	// GL-4: Metadata updates must also enforce KYC/AML on the caller.

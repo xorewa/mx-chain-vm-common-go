@@ -80,6 +80,53 @@ func TestDecodeDRWAStoredJSONUsesWrappedBody(t *testing.T) {
 	require.True(t, view.DRWAEnabled)
 }
 
+func TestDecodeDRWAStoredJSONPolicyAndHolderExtensionFields(t *testing.T) {
+	t.Parallel()
+
+	policyWrapped, err := json.Marshal(&drwaStoredValue{
+		Version: 7,
+		Body: []byte(`{"drwa_enabled":true,"token_policy_version":7,"travel_rule_required":true,` +
+			`"sanctions_screening_enabled":true}`),
+	})
+	require.NoError(t, err)
+
+	policy := &drwaTokenPolicyView{}
+	require.NoError(t, decodeDRWAStoredJSON(policyWrapped, policy))
+	require.True(t, policy.DRWAEnabled)
+	require.Equal(t, uint64(7), policy.TokenPolicyVersion)
+	require.True(t, policy.TravelRuleRequired)
+	require.True(t, policy.SanctionsScreeningEnabled)
+
+	holderWrapped, err := json.Marshal(&drwaStoredValue{
+		Version: 9,
+		Body: []byte(`{"kyc_status":"approved","aml_status":"clear","investor_class":"professional",` +
+			`"jurisdiction_code":"SG","expiry_round":0,"transfer_locked":false,"receive_locked":false,` +
+			`"auditor_authorized":false,"policy_version_evaluated":7,"lock_until_round":0,` +
+			`"travel_rule_attested":true,"sanctions_cleared":true,` +
+			`"sanctions_screening_cid":"bafy-screening-1","ubo_parent_entity":"issuer:parent",` +
+			`"ownership_pct":2500}`),
+	})
+	require.NoError(t, err)
+
+	holder := &drwaHolderMirrorView{}
+	require.NoError(t, decodeDRWAStoredJSON(holderWrapped, holder))
+	require.Equal(t, "approved", holder.KYCStatus)
+	require.Equal(t, "clear", holder.AMLStatus)
+	require.Equal(t, "professional", holder.InvestorClass)
+	require.Equal(t, "SG", holder.JurisdictionCode)
+	require.Equal(t, uint64(7), holder.PolicyVersionEvaluated)
+	require.Equal(t, uint64(9), holder.storedVersion)
+	require.True(t, holder.TravelRuleAttested)
+	require.True(t, holder.SanctionsCleared)
+	require.Equal(t, "bafy-screening-1", holder.SanctionsScreeningCid)
+	require.Equal(t, "issuer:parent", holder.UboParentEntity)
+	require.Equal(t, uint32(2500), holder.OwnershipPct)
+
+	decision := validateDRWASender(policy, holder, 100)
+	require.True(t, decision.Allowed)
+	require.NoError(t, decision.DenialCode)
+}
+
 func TestDecodeDRWAStoredJSONRejectsMalformedWrapperInsteadOfFallingBackToRawBody(t *testing.T) {
 	t.Parallel()
 

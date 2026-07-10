@@ -527,6 +527,21 @@ func TestSetDRWAReadGasUnits_ChangesValue(t *testing.T) {
 	drwaReadGasUnitsAtomic.Store(drwaReadGasUnitsDefault)
 }
 
+func TestTrySetDRWAReadGasUnitsReportsRejectedZero(t *testing.T) {
+	drwaReadGasUnitsAtomic.Store(drwaReadGasUnitsDefault)
+	ok := TrySetDRWAReadGasUnits(0)
+	got := drwaReadGasUnitsAtomic.Load()
+	require.False(t, ok, "zero must be rejected visibly")
+	require.Equal(t, uint64(drwaReadGasUnitsDefault), got, "zero must not change configured gas")
+
+	ok = TrySetDRWAReadGasUnits(17)
+	got = drwaReadGasUnitsAtomic.Load()
+	require.True(t, ok)
+	require.Equal(t, uint64(17), got)
+
+	drwaReadGasUnitsAtomic.Store(drwaReadGasUnitsDefault)
+}
+
 func TestSetDRWAReadGasUnits_RejectsZero(t *testing.T) {
 	drwaReadGasUnitsAtomic.Store(drwaReadGasUnitsDefault)
 	SetDRWAReadGasUnits(0)
