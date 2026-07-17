@@ -58,6 +58,12 @@ const (
 	// Layout: 8 reserved bytes + 1 authorization boolean.
 	drwaBinaryAuditorAuthPayloadMinSize = 9
 
+	// Canonical stored-value wrapper shared with the mx-chain-go sync adapter:
+	// [format:1][version:8][body length:4][body].
+	drwaStoredValueBinaryV1        = byte(0x01)
+	drwaStoredValueBinaryHeaderLen = 13
+	drwaStoredValueNilBodyLength   = uint32(math.MaxUint32)
+
 	// F-008: Minimum gas cost returned by computeDRWAReadGasCost when the
 	// computed cost would otherwise be zero. Prevents free compliance reads
 	// when both DataCopyPerByte and fallbackCost are zero (misconfigured schedule).
@@ -110,7 +116,8 @@ const (
 
 var (
 	errDRWAPolicyNotSynced          = errors.New(string(coredrwa.DenialPolicyNotSynced)) // code 0 — regulated token has no synced policy
-	errDRWATokenPaused              = errors.New(string(coredrwa.DenialTokenPaused))     // code 1
+	errDRWAStoredValueTombstone     = errors.New("drwa stored value is a tombstone")
+	errDRWATokenPaused              = errors.New(string(coredrwa.DenialTokenPaused)) // code 1
 	errDRWAKYCRequiredSender        = errors.New(string(coredrwa.DenialKYCRequiredSender))
 	errDRWAAMLBlockedSender         = errors.New(string(coredrwa.DenialAMLBlockedSender))
 	errDRWAAssetExpired             = errors.New(string(coredrwa.DenialAssetExpired))
@@ -340,6 +347,9 @@ func (d *drwaAccountsReader) GetAssetRecord(tokenIdentifier []byte) (*drwaAssetR
 
 	record := &drwaAssetRecordView{}
 	err = decodeDRWAStoredJSON(data, record)
+	if errors.Is(err, errDRWAStoredValueTombstone) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, fmt.Errorf("drwa asset record unmarshal: %w", err)
 	}
@@ -387,6 +397,9 @@ func (d *drwaAccountsReader) GetTokenPolicy(tokenIdentifier []byte) (*drwaTokenP
 
 	policy := &drwaTokenPolicyView{}
 	err = decodeDRWAStoredJSON(data, policy)
+	if errors.Is(err, errDRWAStoredValueTombstone) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, fmt.Errorf("drwa token policy unmarshal: %w", err)
 	}
@@ -424,6 +437,10 @@ func (d *drwaAccountsReader) GetHolderMirror(tokenIdentifier []byte, address []b
 	if len(data) > 0 {
 		holder = &drwaHolderMirrorView{}
 		err = decodeDRWAStoredJSON(data, holder)
+		if errors.Is(err, errDRWAStoredValueTombstone) {
+			holder = nil
+			err = nil
+		}
 		if err != nil {
 			return nil, fmt.Errorf("drwa holder mirror unmarshal: %w", err)
 		}
@@ -437,6 +454,10 @@ func (d *drwaAccountsReader) GetHolderMirror(tokenIdentifier []byte, address []b
 	if len(profileData) > 0 {
 		profile = &drwaHolderProfileView{}
 		err = decodeDRWAStoredJSON(profileData, profile)
+		if errors.Is(err, errDRWAStoredValueTombstone) {
+			profile = nil
+			err = nil
+		}
 		if err != nil {
 			return nil, fmt.Errorf("drwa holder profile unmarshal: %w", err)
 		}
@@ -450,6 +471,10 @@ func (d *drwaAccountsReader) GetHolderMirror(tokenIdentifier []byte, address []b
 	if len(auditorData) > 0 {
 		auditorAuth = &drwaHolderAuditorAuthorizationView{}
 		err = decodeDRWAStoredJSON(auditorData, auditorAuth)
+		if errors.Is(err, errDRWAStoredValueTombstone) {
+			auditorAuth = nil
+			err = nil
+		}
 		if err != nil {
 			return nil, fmt.Errorf("drwa holder auditor auth unmarshal: %w", err)
 		}
@@ -490,29 +515,24 @@ func (d *drwaAccountsReader) GetHolderMirror(tokenIdentifier []byte, address []b
 		merged.OwnershipPct = holder.OwnershipPct
 	}
 	if profile != nil {
-		// Only let profile overwrite shared compliance fields if its
-		// version is >= the holder mirror version. This prevents a stale
-		// profile sync from reverting a newer holder mirror update.
-		// Strict > (not >=). Equal versions means both were written
-		// in the same sync cycle — holder mirror is authoritative for shared
-		// fields because asset-manager writes it with token-specific context.
-		profileWins := holder == nil || profile.storedVersion > holder.storedVersion
-		if profileWins {
+		// Holder and profile versions are independent producer counters and
+		// must never be compared as a shared chronology. KYC and AML are
+		// deny-dominant: both the global identity profile and token-specific
+		// holder evaluation must be acceptable when both records exist.
+		if holder == nil {
 			merged.KYCStatus = profile.KYCStatus
 			merged.AMLStatus = profile.AMLStatus
-			merged.InvestorClass = profile.InvestorClass
-			merged.JurisdictionCode = profile.JurisdictionCode
+		} else {
+			merged.KYCStatus = composeDRWAKYCStatus(holder.KYCStatus, profile.KYCStatus)
+			merged.AMLStatus = composeDRWAAMLStatus(holder.AMLStatus, profile.AMLStatus)
 		}
-		// L-5: At equal versions, holder mirror wins for shared fields (ExpiryRound, KycStatus, etc.)
-		// but IdentityExpiryRound falls through to the profile if not yet set on the merged result.
-		// This is intentional: IdentityExpiryRound is identity-registry-specific and may not be
-		// present in the holder mirror, while ExpiryRound is policy-level.
-		if profileWins || merged.IdentityExpiryRound == 0 {
-			merged.IdentityExpiryRound = profile.ExpiryRound
-		}
-		if merged.ExpiryRound == 0 && profileWins {
-			merged.ExpiryRound = profile.ExpiryRound
-		}
+
+		// The identity profile owns global identity attributes whenever it is
+		// present. Holder copies are a legacy fallback only when no profile is
+		// available. Token-specific ExpiryRound and locks remain holder-owned.
+		merged.InvestorClass = profile.InvestorClass
+		merged.JurisdictionCode = profile.JurisdictionCode
+		merged.IdentityExpiryRound = profile.ExpiryRound
 	}
 	if auditorAuth != nil {
 		// Attestation-owned auditor authorization is authoritative whenever
@@ -523,6 +543,30 @@ func (d *drwaAccountsReader) GetHolderMirror(tokenIdentifier []byte, address []b
 	}
 
 	return merged, nil
+}
+
+func composeDRWAKYCStatus(holderStatus string, profileStatus string) string {
+	if strings.EqualFold(holderStatus, "approved") && strings.EqualFold(profileStatus, "approved") {
+		return "approved"
+	}
+	if !strings.EqualFold(profileStatus, "approved") {
+		return profileStatus
+	}
+
+	return holderStatus
+}
+
+func composeDRWAAMLStatus(holderStatus string, profileStatus string) string {
+	profileAllowed := strings.EqualFold(profileStatus, "clear") || strings.EqualFold(profileStatus, "approved")
+	holderAllowed := strings.EqualFold(holderStatus, "clear") || strings.EqualFold(holderStatus, "approved")
+	if profileAllowed && holderAllowed {
+		return holderStatus
+	}
+	if !profileAllowed {
+		return profileStatus
+	}
+
+	return holderStatus
 }
 
 func (d *drwaAccountsReader) loadUserAccount(address []byte, currentAccount vmcommon.UserAccountHandler) (vmcommon.UserAccountHandler, error) {
@@ -556,6 +600,23 @@ func retrieveOptionalDRWAValue(account vmcommon.UserAccountHandler, key []byte) 
 }
 
 func decodeDRWAStoredJSON(data []byte, destination interface{}) error {
+	if len(data) > 0 && data[0] == drwaStoredValueBinaryV1 {
+		version, body, tombstone, err := decodeDRWABinaryStoredValue(data)
+		if err == nil && tombstone {
+			return errDRWAStoredValueTombstone
+		}
+		if err == nil {
+			err = decodeDRWABody(body, destination)
+		}
+		if err == nil {
+			setDRWAStoredVersion(destination, version)
+			return nil
+		}
+
+		recordDRWADecodeFailure(data, destination, err)
+		return err
+	}
+
 	// P0 security: reject oversized payloads before JSON parsing to prevent
 	// resource exhaustion from deeply nested or excessively large JSON blobs.
 	// 64KB aligns with the binary decoder's per-field cap.
@@ -571,14 +632,7 @@ func decodeDRWAStoredJSON(data []byte, destination interface{}) error {
 		err = decodeDRWABody(storedValue.Body, destination)
 		// Propagate stored version for merge precedence
 		if err == nil {
-			switch typed := destination.(type) {
-			case *drwaHolderMirrorView:
-				typed.storedVersion = storedValue.Version
-			case *drwaHolderProfileView:
-				typed.storedVersion = storedValue.Version
-			case *drwaHolderAuditorAuthorizationView:
-				typed.storedVersion = storedValue.Version
-			}
+			setDRWAStoredVersion(destination, storedValue.Version)
 		}
 	} else {
 		if jsonErr == nil {
@@ -591,6 +645,45 @@ func decodeDRWAStoredJSON(data []byte, destination interface{}) error {
 		recordDRWADecodeFailure(data, destination, err)
 	}
 	return err
+}
+
+func decodeDRWABinaryStoredValue(data []byte) (uint64, []byte, bool, error) {
+	if len(data) < drwaStoredValueBinaryHeaderLen {
+		return 0, nil, false, errors.New("DRWA stored value binary payload too short")
+	}
+	if data[0] != drwaStoredValueBinaryV1 {
+		return 0, nil, false, fmt.Errorf("unsupported DRWA stored value format: %d", data[0])
+	}
+
+	version := binary.BigEndian.Uint64(data[1:9])
+	bodyLength := binary.BigEndian.Uint32(data[9:13])
+	if bodyLength == drwaStoredValueNilBodyLength {
+		if len(data) != drwaStoredValueBinaryHeaderLen {
+			return 0, nil, false, errors.New("DRWA tombstone payload has trailing bytes")
+		}
+		return version, nil, true, nil
+	}
+	if bodyLength > DRWAMaxFieldBytes {
+		return 0, nil, false, fmt.Errorf("DRWA stored body exceeds size limit: %d > %d", bodyLength, DRWAMaxFieldBytes)
+	}
+
+	expectedLength := drwaStoredValueBinaryHeaderLen + int(bodyLength)
+	if len(data) != expectedLength {
+		return 0, nil, false, fmt.Errorf("DRWA stored value length mismatch: expected=%d got=%d", expectedLength, len(data))
+	}
+
+	return version, data[drwaStoredValueBinaryHeaderLen:], false, nil
+}
+
+func setDRWAStoredVersion(destination interface{}, version uint64) {
+	switch typed := destination.(type) {
+	case *drwaHolderMirrorView:
+		typed.storedVersion = version
+	case *drwaHolderProfileView:
+		typed.storedVersion = version
+	case *drwaHolderAuditorAuthorizationView:
+		typed.storedVersion = version
+	}
 }
 
 func recordDRWADecodeFailure(data []byte, destination interface{}, err error) {
@@ -930,7 +1023,7 @@ func computeDRWAReadGasCost(baseCost vmcommon.BaseOperationCost, fallbackCost ui
 // execute within the same transaction context. Cross-transaction ordering
 // (validator MEV) could front-run a compliance state change. Mitigation:
 // compliance changes should use a commit-reveal scheme or mandatory delay
-// before enforcement. See drwaSyncRecoveryTimelockBlocks in
+// before enforcement. See drwaSyncRecoveryTimelockSeconds in
 // drwa_sync_types.go for rate-limiting on recovery_admin writes.
 
 func isDRWARegulatedToken(reader drwaStateReader, tokenIdentifier []byte, enforcementEnabled bool) (bool, *drwaTokenPolicyView, error) {

@@ -80,6 +80,67 @@ func TestDecodeDRWAStoredJSONUsesWrappedBody(t *testing.T) {
 	require.True(t, view.DRWAEnabled)
 }
 
+func TestDecodeDRWAStoredCanonicalBinaryWrapper(t *testing.T) {
+	t.Parallel()
+
+	body := []byte(`{"drwa_enabled":true,"token_policy_version":7}`)
+	wrapper := makeCanonicalDRWAStoredValue(7, uint32(len(body)), body)
+	view := &drwaTokenPolicyView{}
+
+	require.NoError(t, decodeDRWAStoredJSON(wrapper, view))
+	require.True(t, view.DRWAEnabled)
+	require.Equal(t, uint64(7), view.TokenPolicyVersion)
+}
+
+func TestDecodeDRWAStoredCanonicalBinaryWrapperBoundaries(t *testing.T) {
+	t.Parallel()
+
+	validJSON := []byte(`{"drwa_enabled":true}`)
+	maxBody := make([]byte, DRWAMaxFieldBytes)
+	copy(maxBody, validJSON)
+	for index := len(validJSON); index < len(maxBody); index++ {
+		maxBody[index] = ' '
+	}
+	require.NoError(t, decodeDRWAStoredJSON(
+		makeCanonicalDRWAStoredValue(1, uint32(len(maxBody)), maxBody),
+		&drwaTokenPolicyView{},
+	))
+
+	tooLarge := append(maxBody, ' ')
+	err := decodeDRWAStoredJSON(
+		makeCanonicalDRWAStoredValue(1, uint32(len(tooLarge)), tooLarge),
+		&drwaTokenPolicyView{},
+	)
+	require.ErrorContains(t, err, "exceeds size limit")
+
+	_, _, _, err = decodeDRWABinaryStoredValue([]byte{drwaStoredValueBinaryV1})
+	require.ErrorContains(t, err, "too short")
+
+	truncated := makeCanonicalDRWAStoredValue(1, uint32(len(validJSON)+1), validJSON)
+	_, _, _, err = decodeDRWABinaryStoredValue(truncated)
+	require.ErrorContains(t, err, "length mismatch")
+
+	trailing := append(makeCanonicalDRWAStoredValue(1, uint32(len(validJSON)), validJSON), 0)
+	_, _, _, err = decodeDRWABinaryStoredValue(trailing)
+	require.ErrorContains(t, err, "length mismatch")
+
+	invalidTag := makeCanonicalDRWAStoredValue(1, uint32(len(validJSON)), validJSON)
+	invalidTag[0] = 2
+	_, _, _, err = decodeDRWABinaryStoredValue(invalidTag)
+	require.ErrorContains(t, err, "unsupported")
+}
+
+func TestDecodeDRWAStoredCanonicalBinaryTombstone(t *testing.T) {
+	t.Parallel()
+
+	tombstone := makeCanonicalDRWAStoredValue(9, drwaStoredValueNilBodyLength, nil)
+	err := decodeDRWAStoredJSON(tombstone, &drwaHolderMirrorView{})
+	require.ErrorIs(t, err, errDRWAStoredValueTombstone)
+
+	_, _, _, err = decodeDRWABinaryStoredValue(append(tombstone, 0))
+	require.ErrorContains(t, err, "trailing bytes")
+}
+
 func TestDecodeDRWAStoredJSONPolicyAndHolderExtensionFields(t *testing.T) {
 	t.Parallel()
 
@@ -386,4 +447,13 @@ func appendLenPrefixed(buffer []byte, value []byte) []byte {
 	buffer = append(buffer, length...)
 	buffer = append(buffer, value...)
 	return buffer
+}
+
+func makeCanonicalDRWAStoredValue(version uint64, bodyLength uint32, body []byte) []byte {
+	wrapper := make([]byte, drwaStoredValueBinaryHeaderLen+len(body))
+	wrapper[0] = drwaStoredValueBinaryV1
+	binary.BigEndian.PutUint64(wrapper[1:9], version)
+	binary.BigEndian.PutUint32(wrapper[9:13], bodyLength)
+	copy(wrapper[13:], body)
+	return wrapper
 }

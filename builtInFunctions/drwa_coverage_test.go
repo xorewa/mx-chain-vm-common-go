@@ -618,7 +618,8 @@ func TestGetHolderMirror_ProfileOnlyMerge(t *testing.T) {
 	require.Equal(t, "approved", merged.KYCStatus)
 	require.Equal(t, "QIB", merged.InvestorClass)
 	require.Equal(t, "US", merged.JurisdictionCode)
-	require.Equal(t, uint64(99), merged.ExpiryRound)
+	require.Zero(t, merged.ExpiryRound, "token-specific expiry requires a holder mirror")
+	require.Equal(t, uint64(99), merged.IdentityExpiryRound)
 }
 
 func TestGetHolderMirror_AuditorAuthorizationOverridesHolderMirrorRegardlessOfVersion(t *testing.T) {

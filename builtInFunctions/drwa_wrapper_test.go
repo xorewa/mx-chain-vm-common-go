@@ -275,12 +275,11 @@ func TestGetHolderMirrorMergesProfileAndAuditorAuthorization(t *testing.T) {
 	merged, err := reader.GetHolderMirror([]byte("CARBON-1"), []byte("holder"), nil)
 	require.NoError(t, err)
 	require.NotNil(t, merged)
-	// At equal storedVersion (both 0), holder mirror wins for shared fields.
-	// Profile fields (KYC=approved, InvestorClass=QIB, Jurisdiction=US) do NOT override
-	// the mirror (KYC=pending, InvestorClass=RETAIL, Jurisdiction=FR).
+	// KYC/AML compose deny-dominantly while identity attributes come from the
+	// profile, regardless of the unrelated wrapper counters.
 	require.Equal(t, "pending", merged.KYCStatus)
-	require.Equal(t, "RETAIL", merged.InvestorClass)
-	require.Equal(t, "FR", merged.JurisdictionCode)
+	require.Equal(t, "QIB", merged.InvestorClass)
+	require.Equal(t, "US", merged.JurisdictionCode)
 	require.Equal(t, uint64(55), merged.ExpiryRound)
 	// IdentityExpiryRound falls through to profile when merged value is 0 (L-5)
 	require.Equal(t, uint64(99), merged.IdentityExpiryRound)
@@ -288,7 +287,7 @@ func TestGetHolderMirrorMergesProfileAndAuditorAuthorization(t *testing.T) {
 	require.True(t, merged.AuditorAuthorized)
 }
 
-func TestGetHolderMirrorNewerProfileOverridesStaleHolderSharedFields(t *testing.T) {
+func TestGetHolderMirrorProfileVersionDoesNotOverrideStricterHolderCompliance(t *testing.T) {
 	t.Parallel()
 
 	holderAccount := mock.NewAccountWrapMock([]byte("holder"))
@@ -303,7 +302,8 @@ func TestGetHolderMirrorNewerProfileOverridesStaleHolderSharedFields(t *testing.
 
 	// Older holder mirror state.
 	mustSaveDRWAHolderBinary(t, holderAccount, "CARBON-NEWER", "holder", 1, "pending", "blocked", "RETAIL", "FR", 55, false, false, false)
-	// Newer identity profile must win for shared identity fields.
+	// Profile owns identity attributes, but its unrelated higher counter cannot
+	// erase a stricter token-specific KYC/AML result.
 	mustSaveDRWAHolderProfile(t, holderAccount, "holder", &drwaHolderProfileView{
 		KYCStatus:        "approved",
 		AMLStatus:        "approved",
@@ -330,13 +330,49 @@ func TestGetHolderMirrorNewerProfileOverridesStaleHolderSharedFields(t *testing.
 	merged, err := reader.GetHolderMirror([]byte("CARBON-NEWER"), []byte("holder"), nil)
 	require.NoError(t, err)
 	require.NotNil(t, merged)
-	require.Equal(t, "approved", merged.KYCStatus)
-	require.Equal(t, "approved", merged.AMLStatus)
+	require.Equal(t, "pending", merged.KYCStatus)
+	require.Equal(t, "blocked", merged.AMLStatus)
 	require.Equal(t, "QIB", merged.InvestorClass)
 	require.Equal(t, "US", merged.JurisdictionCode)
 	// IdentityExpiryRound always follows the profile.
 	require.Equal(t, uint64(99), merged.IdentityExpiryRound)
 	// Token-specific fields still come from the holder mirror.
+	require.Equal(t, uint64(55), merged.ExpiryRound)
+}
+
+func TestGetHolderMirrorProfileDeactivationOverridesHigherHolderCounter(t *testing.T) {
+	t.Parallel()
+
+	holderAccount := mock.NewAccountWrapMock([]byte("holder"))
+	accounts := &mock.AccountsStub{
+		LoadAccountCalled: func(address []byte) (vmcommon.AccountHandler, error) {
+			return holderAccount, nil
+		},
+	}
+	reader, err := newDRWAAccountsReader(accounts)
+	require.NoError(t, err)
+
+	mustSaveDRWAHolderBinary(t, holderAccount, "CARBON-DEACTIVATED", "holder", 5, "approved", "clear", "RETAIL", "FR", 55, false, false, false)
+	profileBody, err := json.Marshal(&drwaHolderProfileView{
+		KYCStatus:        "deactivated",
+		AMLStatus:        "deactivated",
+		InvestorClass:    "",
+		JurisdictionCode: "DEACTIVATED",
+	})
+	require.NoError(t, err)
+	profileBytes, err := json.Marshal(&drwaStoredValue{Version: 2, Body: profileBody})
+	require.NoError(t, err)
+	require.NoError(t, holderAccount.AccountDataHandler().SaveKeyValue(
+		BuildDRWAHolderProfileKey([]byte("holder")),
+		profileBytes,
+	))
+
+	merged, err := reader.GetHolderMirror([]byte("CARBON-DEACTIVATED"), []byte("holder"), nil)
+	require.NoError(t, err)
+	require.Equal(t, "deactivated", merged.KYCStatus)
+	require.Equal(t, "deactivated", merged.AMLStatus)
+	require.Empty(t, merged.InvestorClass)
+	require.Equal(t, "DEACTIVATED", merged.JurisdictionCode)
 	require.Equal(t, uint64(55), merged.ExpiryRound)
 }
 
