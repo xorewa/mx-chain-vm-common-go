@@ -510,6 +510,10 @@ func (b *builtInFuncCreator) CreateBuiltInFunctionContainer() error {
 	if err != nil {
 		return err
 	}
+	err = b.attachDRWAReaderIfSupported(newFunc)
+	if err != nil {
+		return err
+	}
 	err = b.builtInFunctions.Add(vmcommon.ESDTAddMetadata, newFunc)
 	if err != nil {
 		return err

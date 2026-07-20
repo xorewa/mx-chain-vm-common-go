@@ -163,7 +163,7 @@ func TestIsDRWARegulatedToken_ActiveTokenWithoutPolicyReturnsCodeZero(t *testing
 	regulated, policy, err := isDRWARegulatedToken(reader, []byte("BOND-1"), true)
 	require.True(t, regulated)
 	require.Nil(t, policy)
-	require.ErrorIs(t, err, errDRWAStateReaderMissing)
+	require.ErrorIs(t, err, errDRWAPolicyNotSynced)
 }
 
 func TestGetTokenPolicyAndHolderMirrorErrorPaths(t *testing.T) {

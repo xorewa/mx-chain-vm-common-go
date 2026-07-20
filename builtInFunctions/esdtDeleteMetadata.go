@@ -234,6 +234,12 @@ func (e *esdtDeleteMetaData) addMetadata(args [][]byte) error {
 		if !vmcommon.ValidateToken(tokenID) {
 			return ErrInvalidTokenID
 		}
+		if isDRWAEnforcementEnabled(e.enableEpochsHandler) {
+			_, err = evaluateDRWAMetadataUpdate(e.drwaReader, tokenID, e.allowedAddress, nil)
+			if err != nil {
+				return err
+			}
+		}
 
 		esdtTokenKey := append(e.keyPrefix, tokenID...)
 		esdtNFTTokenKey := computeESDTNFTTokenKey(esdtTokenKey, nonce)

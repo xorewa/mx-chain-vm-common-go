@@ -369,7 +369,7 @@ func TestIsDRWARegulatedToken_ActiveWithoutPolicyFailsClosed(t *testing.T) {
 
 	regulated, _, err := isDRWARegulatedToken(reader, []byte("CARBON-1"), true)
 	require.True(t, regulated)
-	require.ErrorIs(t, err, errDRWAStateReaderMissing)
+	require.ErrorIs(t, err, errDRWAPolicyNotSynced)
 }
 
 // ---------------------------------------------------------------------------

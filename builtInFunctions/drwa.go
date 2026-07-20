@@ -1048,7 +1048,7 @@ func isDRWARegulatedToken(reader drwaStateReader, tokenIdentifier []byte, enforc
 		}
 		if active {
 			recordDRWAGateMetric(drwaGateMetricDeniedPolicyNotSynced)
-			return true, nil, errDRWAStateReaderMissing
+			return true, nil, errDRWAPolicyNotSynced
 		}
 
 		// If an asset record exists for this token, the token was previously

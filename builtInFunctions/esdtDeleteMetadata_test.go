@@ -241,6 +241,37 @@ func TestEsdtDeleteMetaData_ProcessBuiltinFunctionAdd(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestEsdtAddMetaData_RequiresDRWAReaderWhenEnforcementEnabled(t *testing.T) {
+	args := createMockArgsForNewESDTDelete()
+	args.Delete = false
+	args.EnableEpochsHandler = &mock.EnableEpochsHandlerStub{
+		IsFlagEnabledCalled: func(flag core.EnableEpochFlag) bool {
+			return flag == SendAlwaysFlag || flag == DRWAEnforcementFlag
+		},
+	}
+	e, err := NewESDTDeleteMetadataFunc(args)
+	assert.NoError(t, err)
+	acnt := mock.NewUserAccount(vmcommon.SystemAccountAddress)
+	e.accounts = &mock.AccountsStub{
+		LoadAccountCalled: func([]byte) (vmcommon.AccountHandler, error) {
+			return acnt, nil
+		},
+	}
+
+	metadata := &esdt.MetaData{Name: []byte("something"), Nonce: 1}
+	marshalledData, err := e.marshaller.Marshal(metadata)
+	assert.NoError(t, err)
+	vmInput := &vmcommon.ContractCallInput{VMInput: vmcommon.VMInput{
+		CallValue:  big.NewInt(0),
+		CallerAddr: e.allowedAddress,
+		Arguments:  [][]byte{[]byte("TOKEN-ababab"), {1}, marshalledData},
+	}, RecipientAddr: e.allowedAddress}
+
+	output, err := e.ProcessBuiltinFunction(nil, nil, vmInput)
+	assert.Nil(t, output)
+	assert.ErrorIs(t, err, errDRWAStateReaderMissing)
+}
+
 func TestEsdtDeleteMetaData_ProcessBuiltinFunctionDelete(t *testing.T) {
 	t.Parallel()
 
