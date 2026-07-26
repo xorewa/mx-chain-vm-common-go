@@ -2,10 +2,10 @@ name: Tests
 
 on:
   pull_request:
-    branches: [ master, rc/*, feat/* ]
+    branches: [ NewArc ]
     types: [ opened, ready_for_review ]
   push:
-  workflow_dispatch:
+    branches: [ NewArc ]
 
 jobs:
   test:

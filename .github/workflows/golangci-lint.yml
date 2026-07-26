@@ -2,9 +2,9 @@ name: golangci-lint
 on:
   push:
     branches:
-      - master
+      - NewArc
   pull_request:
-    branches: [ master, feat/*, rc/* ]
+    branches: [ NewArc ]
 
 permissions:
   contents: read
