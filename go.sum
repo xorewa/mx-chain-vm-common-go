@@ -84,12 +84,8 @@ github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/stretchr/testify v1.10.0 h1:Xv5erBjTwe/5IxqUQTdXv5kgmIvbHo3QQyRwhJsOfJA=
 github.com/stretchr/testify v1.10.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7/go.mod h1:q4W45IWZaF22tdD+VEXcAWRA037jwmWEB5VWYORlTpc=
-github.com/xorewa/mx-chain-core-go v0.0.0-20260622185646-a558edf5ceda h1:0A0rGEgeKlaQQHONiAUxN/DQMzSFraONLm0IviiXmo8=
-github.com/xorewa/mx-chain-core-go v0.0.0-20260622185646-a558edf5ceda/go.mod h1:nx8HPC1fvHcXGXNAUQaMXNQWSMgSWcqST+Od76tuCeI=
 github.com/xorewa/mx-chain-core-go v0.0.0-20260726052636-57c2876d270c h1:Yl99iRPzZ2zk9IoEE2iAsQ6rDDSxSNRwjbJmGMo229I=
 github.com/xorewa/mx-chain-core-go v0.0.0-20260726052636-57c2876d270c/go.mod h1:nx8HPC1fvHcXGXNAUQaMXNQWSMgSWcqST+Od76tuCeI=
-github.com/xorewa/mx-chain-logger-go v0.0.0-20260630161826-04c5818227ed h1:V5EqfNqAzwcdgPxpXkC4C0sIzT6FttNRY3zABiQsghc=
-github.com/xorewa/mx-chain-logger-go v0.0.0-20260630161826-04c5818227ed/go.mod h1:tYYGwoIUG2TVmhyXI4Zp9s3VWzxqEUgBhjXAMx3vzVc=
 github.com/xorewa/mx-chain-logger-go v0.0.0-20260726053317-c1b77dfb4fe7 h1:x7d3G62tPPffWOEyS5LU07tGRDL+CvmsOOlo0wkR3Xg=
 github.com/xorewa/mx-chain-logger-go v0.0.0-20260726053317-c1b77dfb4fe7/go.mod h1:lbbxLl4p1Z0ZvymL/8sqL/8ixRjD2RG+6jdnye7nZMM=
 golang.org/x/crypto v0.0.0-20170930174604-9419663f5a44/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
