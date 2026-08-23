@@ -97,6 +97,9 @@ type OutputTransfer struct {
 	CallType vm.CallType
 	// ProtocolMessageKind distinguishes native protocol messages from ordinary output transfers.
 	// Existing producers must leave this at ProtocolMessageKindNone.
+	// NON_NORMATIVE_DRWA_PROTOTYPE
+	// DO_NOT_EXPOSE_AS_PUBLIC_WIRE_FORMAT
+	// REPLACED_BY_PART_B
 	ProtocolMessageKind vm.ProtocolMessageKind
 	// SenderAddress is the actual sender for the given output transfer, this is needed when
 	// contract A calls contract B and contract B does the transfers
