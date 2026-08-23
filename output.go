@@ -176,7 +176,7 @@ type VMOutput struct {
 	// NON_NORMATIVE_DRWA_PROTOTYPE
 	// DO_NOT_EXPOSE_AS_PUBLIC_WIRE_FORMAT
 	// REPLACED_BY_PART_B
-	ProtocolExecution *ProtocolExecutionInfo
+	ProtocolExecution *ProtocolExecutionInfo `json:"-"`
 
 	// OutputAccounts contains data about all accounts changed as a result of the
 	// Transaction. It is a map containing pointers to OutputAccount structs,

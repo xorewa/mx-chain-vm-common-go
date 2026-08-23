@@ -1,6 +1,7 @@
 package vmcommon
 
 import (
+	"encoding/json"
 	"math/big"
 	"testing"
 
@@ -59,6 +60,39 @@ func TestProtocolExecutionContractIsExplicitOptIn(t *testing.T) {
 		ForwardedGas: 99,
 	}
 	require.Equal(t, uint64(100), ordinary.ProtocolExecution.LocalGasUsed+ordinary.ProtocolExecution.ForwardedGas)
+}
+
+func TestProtocolExecutionContractIsExcludedFromJSON(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]*VMOutput{
+		"nil contract": {},
+		"populated contract": {
+			ProtocolExecution: &ProtocolExecutionInfo{
+				MessageKind:  vm.ProtocolMessageKindDRWA,
+				Outcome:      ProtocolExecutionOutcomeForward,
+				LocalGasUsed: 1122334455,
+				ForwardedGas: 9988776655,
+			},
+		},
+	}
+
+	for name, output := range tests {
+		output := output
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			encoded, err := json.Marshal(output)
+			require.NoError(t, err)
+			require.NotContains(t, string(encoded), "ProtocolExecution")
+			require.NotContains(t, string(encoded), "1122334455")
+			require.NotContains(t, string(encoded), "9988776655")
+
+			decoded := make(map[string]json.RawMessage)
+			require.NoError(t, json.Unmarshal(encoded, &decoded))
+			require.NotContains(t, decoded, "ProtocolExecution")
+		})
+	}
 }
 
 func TestOutputContext_MergeCompleteAccounts(t *testing.T) {
