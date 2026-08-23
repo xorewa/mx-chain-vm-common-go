@@ -17,4 +17,5 @@ func TestNativeCallOriginPrototypeValuesAndDefault(t *testing.T) {
 	require.Equal(t, NativeCallOriginUnknown, input.NativeCallOrigin)
 	require.Equal(t, NativeCallOrigin(0), NativeCallOriginUnknown)
 	require.Equal(t, NativeCallOrigin(1), NativeCallOriginOriginalUserTransaction)
+	require.Equal(t, NativeCallOrigin(2), NativeCallOriginDRWAProtocolMessage)
 }

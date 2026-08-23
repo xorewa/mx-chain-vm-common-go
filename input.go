@@ -19,6 +19,8 @@ const (
 	NativeCallOriginUnknown NativeCallOrigin = iota
 	// NativeCallOriginOriginalUserTransaction marks direct construction from a non-relayed user transaction.
 	NativeCallOriginOriginalUserTransaction
+	// NativeCallOriginDRWAProtocolMessage marks construction from an authenticated DRWA-kind SCR.
+	NativeCallOriginDRWAProtocolMessage
 )
 
 // VMInput contains the common fields between the 2 types of SC call.
