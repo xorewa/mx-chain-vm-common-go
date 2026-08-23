@@ -87,3 +87,10 @@ func TestOutputContext_MergeCompleteAccounts(t *testing.T) {
 	left.MergeOutputAccounts(right)
 	require.Equal(t, expected, left)
 }
+
+func TestOutputTransfer_DefaultProtocolMessageKindIsNone(t *testing.T) {
+	t.Parallel()
+
+	transfer := OutputTransfer{}
+	require.Equal(t, vm.ProtocolMessageKindNone, transfer.ProtocolMessageKind)
+}

@@ -95,6 +95,9 @@ type OutputTransfer struct {
 	Data []byte
 	// CallType is set if it is a smart contract invocation
 	CallType vm.CallType
+	// ProtocolMessageKind distinguishes native protocol messages from ordinary output transfers.
+	// Existing producers must leave this at ProtocolMessageKindNone.
+	ProtocolMessageKind vm.ProtocolMessageKind
 	// SenderAddress is the actual sender for the given output transfer, this is needed when
 	// contract A calls contract B and contract B does the transfers
 	SenderAddress []byte

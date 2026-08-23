@@ -24,3 +24,5 @@ require (
 )
 
 replace github.com/gogo/protobuf => github.com/multiversx/protobuf v1.3.2
+
+replace github.com/multiversx/mx-chain-core-go => github.com/xorewa/mx-chain-core-go v0.0.0-20260823031619-7e2d415cb335
