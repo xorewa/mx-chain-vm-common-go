@@ -115,6 +115,34 @@ type LogEntry struct {
 	Data       [][]byte
 }
 
+// ProtocolExecutionOutcome identifies an internal native-protocol execution result.
+// The zero value is reserved so ordinary VM outputs cannot opt in accidentally.
+// NON_NORMATIVE_DRWA_PROTOTYPE
+// DO_NOT_EXPOSE_AS_PUBLIC_WIRE_FORMAT
+// REPLACED_BY_PART_B
+type ProtocolExecutionOutcome byte
+
+const (
+	ProtocolExecutionOutcomeNone ProtocolExecutionOutcome = iota
+	ProtocolExecutionOutcomeForward
+	ProtocolExecutionOutcomeSettlementReceipt
+	ProtocolExecutionOutcomeRefundEnvelope
+	ProtocolExecutionOutcomeSourceSettled
+	ProtocolExecutionOutcomeSourceRefunded
+)
+
+// ProtocolExecutionInfo declares the gas partition for one native protocol outcome.
+// It is an in-process host/processor contract and is not serialized into an SCR.
+// NON_NORMATIVE_DRWA_PROTOTYPE
+// DO_NOT_EXPOSE_AS_PUBLIC_WIRE_FORMAT
+// REPLACED_BY_PART_B
+type ProtocolExecutionInfo struct {
+	MessageKind  vm.ProtocolMessageKind
+	Outcome      ProtocolExecutionOutcome
+	LocalGasUsed uint64
+	ForwardedGas uint64
+}
+
 // VMOutput is the return data and final account state after a SC execution.
 type VMOutput struct {
 	// ReturnData is the function call returned result.
@@ -142,6 +170,13 @@ type VMOutput struct {
 	// Certain operations, like freeing up storage, actually return gas instead of consuming it.
 	// Based on GasRefund, the sender could in principle be rewarded instead of taxed.
 	GasRefund *big.Int
+
+	// ProtocolExecution carries an explicit native-protocol gas partition.
+	// Ordinary VM and built-in outputs must leave this nil.
+	// NON_NORMATIVE_DRWA_PROTOTYPE
+	// DO_NOT_EXPOSE_AS_PUBLIC_WIRE_FORMAT
+	// REPLACED_BY_PART_B
+	ProtocolExecution *ProtocolExecutionInfo
 
 	// OutputAccounts contains data about all accounts changed as a result of the
 	// Transaction. It is a map containing pointers to OutputAccount structs,

@@ -47,6 +47,20 @@ func TestGetFirstReturnData(t *testing.T) {
 	assert.Equal(t, "64", dataAsHex)
 }
 
+func TestProtocolExecutionContractIsExplicitOptIn(t *testing.T) {
+	ordinary := &VMOutput{}
+	require.Nil(t, ordinary.ProtocolExecution)
+	require.Equal(t, ProtocolExecutionOutcomeNone, ProtocolExecutionOutcome(0))
+
+	ordinary.ProtocolExecution = &ProtocolExecutionInfo{
+		MessageKind:  vm.ProtocolMessageKindDRWA,
+		Outcome:      ProtocolExecutionOutcomeForward,
+		LocalGasUsed: 1,
+		ForwardedGas: 99,
+	}
+	require.Equal(t, uint64(100), ordinary.ProtocolExecution.LocalGasUsed+ordinary.ProtocolExecution.ForwardedGas)
+}
+
 func TestOutputContext_MergeCompleteAccounts(t *testing.T) {
 	t.Parallel()
 
