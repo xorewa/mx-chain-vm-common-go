@@ -30,6 +30,9 @@ const BuiltInFunctionESDTTransferRoleAddAddress = "ESDTTransferRoleAddAddress"
 // BuiltInFunctionESDTTransferRoleDeleteAddress represents the defined built in function name for transfer role delete address
 const BuiltInFunctionESDTTransferRoleDeleteAddress = "ESDTTransferRoleDeleteAddress"
 
+// BuiltInFunctionDRWARegulatedValueEnvelope is the prototype native carrier handler for a regulated value envelope.
+const BuiltInFunctionDRWARegulatedValueEnvelope = "DRWARegulatedValueEnvelope"
+
 // ESDTRoleBurnForAll represents the role for burn for all
 const ESDTRoleBurnForAll = "ESDTRoleBurnForAll"
 
