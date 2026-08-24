@@ -137,10 +137,11 @@ const (
 // DO_NOT_EXPOSE_AS_PUBLIC_WIRE_FORMAT
 // REPLACED_BY_PART_B
 type ProtocolExecutionInfo struct {
-	MessageKind  vm.ProtocolMessageKind
-	Outcome      ProtocolExecutionOutcome
-	LocalGasUsed uint64
-	ForwardedGas uint64
+	MessageKind        vm.ProtocolMessageKind
+	Outcome            ProtocolExecutionOutcome
+	LocalGasUsed       uint64
+	ForwardedGas       uint64
+	GasRefundRecipient []byte
 }
 
 // VMOutput is the return data and final account state after a SC execution.

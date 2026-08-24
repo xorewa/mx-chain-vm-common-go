@@ -1,6 +1,7 @@
 package vmcommon
 
 import (
+	"bytes"
 	"encoding/json"
 	"math/big"
 	"testing"
@@ -54,12 +55,14 @@ func TestProtocolExecutionContractIsExplicitOptIn(t *testing.T) {
 	require.Equal(t, ProtocolExecutionOutcomeNone, ProtocolExecutionOutcome(0))
 
 	ordinary.ProtocolExecution = &ProtocolExecutionInfo{
-		MessageKind:  vm.ProtocolMessageKindDRWA,
-		Outcome:      ProtocolExecutionOutcomeForward,
-		LocalGasUsed: 1,
-		ForwardedGas: 99,
+		MessageKind:        vm.ProtocolMessageKindDRWA,
+		Outcome:            ProtocolExecutionOutcomeForward,
+		LocalGasUsed:       1,
+		ForwardedGas:       99,
+		GasRefundRecipient: bytes.Repeat([]byte{0x11}, 32),
 	}
 	require.Equal(t, uint64(100), ordinary.ProtocolExecution.LocalGasUsed+ordinary.ProtocolExecution.ForwardedGas)
+	require.Len(t, ordinary.ProtocolExecution.GasRefundRecipient, 32)
 }
 
 func TestProtocolExecutionContractIsExcludedFromJSON(t *testing.T) {
@@ -69,10 +72,11 @@ func TestProtocolExecutionContractIsExcludedFromJSON(t *testing.T) {
 		"nil contract": {},
 		"populated contract": {
 			ProtocolExecution: &ProtocolExecutionInfo{
-				MessageKind:  vm.ProtocolMessageKindDRWA,
-				Outcome:      ProtocolExecutionOutcomeForward,
-				LocalGasUsed: 1122334455,
-				ForwardedGas: 9988776655,
+				MessageKind:        vm.ProtocolMessageKindDRWA,
+				Outcome:            ProtocolExecutionOutcomeForward,
+				LocalGasUsed:       1122334455,
+				ForwardedGas:       9988776655,
+				GasRefundRecipient: bytes.Repeat([]byte{0x77}, 32),
 			},
 		},
 	}
@@ -87,6 +91,7 @@ func TestProtocolExecutionContractIsExcludedFromJSON(t *testing.T) {
 			require.NotContains(t, string(encoded), "ProtocolExecution")
 			require.NotContains(t, string(encoded), "1122334455")
 			require.NotContains(t, string(encoded), "9988776655")
+			require.NotContains(t, string(encoded), "d3d3d3d3")
 
 			decoded := make(map[string]json.RawMessage)
 			require.NoError(t, json.Unmarshal(encoded, &decoded))
