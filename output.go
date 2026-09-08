@@ -95,6 +95,12 @@ type OutputTransfer struct {
 	Data []byte
 	// CallType is set if it is a smart contract invocation
 	CallType vm.CallType
+	// ProtocolMessageKind distinguishes native protocol messages from ordinary output transfers.
+	// Existing producers must leave this at ProtocolMessageKindNone.
+	// NON_NORMATIVE_DRWA_PROTOTYPE
+	// DO_NOT_EXPOSE_AS_PUBLIC_WIRE_FORMAT
+	// REPLACED_BY_PART_B
+	ProtocolMessageKind vm.ProtocolMessageKind
 	// SenderAddress is the actual sender for the given output transfer, this is needed when
 	// contract A calls contract B and contract B does the transfers
 	SenderAddress []byte
@@ -107,6 +113,35 @@ type LogEntry struct {
 	Address    []byte
 	Topics     [][]byte
 	Data       [][]byte
+}
+
+// ProtocolExecutionOutcome identifies an internal native-protocol execution result.
+// The zero value is reserved so ordinary VM outputs cannot opt in accidentally.
+// NON_NORMATIVE_DRWA_PROTOTYPE
+// DO_NOT_EXPOSE_AS_PUBLIC_WIRE_FORMAT
+// REPLACED_BY_PART_B
+type ProtocolExecutionOutcome byte
+
+const (
+	ProtocolExecutionOutcomeNone ProtocolExecutionOutcome = iota
+	ProtocolExecutionOutcomeForward
+	ProtocolExecutionOutcomeSettlementReceipt
+	ProtocolExecutionOutcomeRefundEnvelope
+	ProtocolExecutionOutcomeSourceSettled
+	ProtocolExecutionOutcomeSourceRefunded
+)
+
+// ProtocolExecutionInfo declares the gas partition for one native protocol outcome.
+// It is an in-process host/processor contract and is not serialized into an SCR.
+// NON_NORMATIVE_DRWA_PROTOTYPE
+// DO_NOT_EXPOSE_AS_PUBLIC_WIRE_FORMAT
+// REPLACED_BY_PART_B
+type ProtocolExecutionInfo struct {
+	MessageKind        vm.ProtocolMessageKind
+	Outcome            ProtocolExecutionOutcome
+	LocalGasUsed       uint64
+	ForwardedGas       uint64
+	GasRefundRecipient []byte
 }
 
 // VMOutput is the return data and final account state after a SC execution.
@@ -136,6 +171,13 @@ type VMOutput struct {
 	// Certain operations, like freeing up storage, actually return gas instead of consuming it.
 	// Based on GasRefund, the sender could in principle be rewarded instead of taxed.
 	GasRefund *big.Int
+
+	// ProtocolExecution carries an explicit native-protocol gas partition.
+	// Ordinary VM and built-in outputs must leave this nil.
+	// NON_NORMATIVE_DRWA_PROTOTYPE
+	// DO_NOT_EXPOSE_AS_PUBLIC_WIRE_FORMAT
+	// REPLACED_BY_PART_B
+	ProtocolExecution *ProtocolExecutionInfo `json:"-"`
 
 	// OutputAccounts contains data about all accounts changed as a result of the
 	// Transaction. It is a map containing pointers to OutputAccount structs,
