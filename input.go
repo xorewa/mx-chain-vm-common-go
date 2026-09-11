@@ -6,8 +6,29 @@ import (
 	"github.com/multiversx/mx-chain-core-go/data/vm"
 )
 
+// NativeCallOrigin identifies trusted native construction of a VM input for the S1 prototype.
+// It is internal execution context, not a wire field or user-supplied authority.
+//
+// NON_NORMATIVE_DRWA_PROTOTYPE
+// DO_NOT_EXPOSE_AS_PUBLIC_WIRE_FORMAT
+// REPLACED_BY_PART_B
+type NativeCallOrigin byte
+
+const (
+	// NativeCallOriginUnknown is the fail-closed default for derived, SCR, VM and query inputs.
+	NativeCallOriginUnknown NativeCallOrigin = iota
+	// NativeCallOriginOriginalUserTransaction marks direct construction from a non-relayed user transaction.
+	NativeCallOriginOriginalUserTransaction
+	// NativeCallOriginDRWAProtocolMessage marks construction from an authenticated DRWA-kind SCR.
+	NativeCallOriginDRWAProtocolMessage
+)
+
 // VMInput contains the common fields between the 2 types of SC call.
 type VMInput struct {
+	// NativeCallOrigin records trusted native construction context for the non-normative DRWA prototype.
+	// Consumers must fail closed on Unknown and must not treat this field as sufficient authority alone.
+	NativeCallOrigin NativeCallOrigin
+
 	// CallerAddr is the public key of the wallet initiating the transaction, "from".
 	CallerAddr []byte
 
